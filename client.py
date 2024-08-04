@@ -313,12 +313,10 @@ class Cloud189Client:
         return res
     
     def get_play_url(self, file_id):
-        response = self._advreq("https://cloud.189.cn/api/portal/getNewVlcVideoPlayUrl.action123", "GET", {
+        response = self._advreq("https://cloud.189.cn/api/portal/getNewVlcVideoPlayUrl.action", "GET", {
             "fileId": file_id,
             "type": "2",
         })
-        
-        print(response)
         
         if response["res_code"] == 0:
             return response["normal"]["url"]
