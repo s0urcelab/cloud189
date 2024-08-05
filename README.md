@@ -10,7 +10,7 @@ from cloud189.client import Cloud189Client
 
 client189 = Cloud189Client(username='xxxxxx', password='xxxxx')
 
-client189.upload(file_path, file_name, folder_id)
+client189.upload(file_path, folder_id, rename)
 client189.delete(file_id, file_name, is_folder=False)
 client189.get_play_url(file_id)
 ```

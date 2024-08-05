@@ -174,7 +174,7 @@ class Cloud189Client:
 
         return response.json()
     
-    def upload(self, file_path, file_name, folder_id):
+    def upload(self, file_path, folder_id, rename=None):
         session_key = self._get_session_key()
         if session_key is None:
             raise UploadError(f'failed to get session key')
@@ -186,7 +186,7 @@ class Cloud189Client:
 
             res = self._upload_request("/person/initMultiUpload", {
                 "parentFolderId": folder_id,
-                "fileName": encode(file_name or file.get_name()),
+                "fileName": encode(file.get_name(rename)),
                 "fileSize": str(file_size),
                 "sliceSize": str(self.slice_size),
                 "lazyCheck": "1"
