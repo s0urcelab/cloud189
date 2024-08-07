@@ -35,8 +35,8 @@ class FileStream:
     def get_name(self, custom_name=None):
         """获取文件名"""
         full_name = self.file_path.split('/')[-1]
-        name, ext = full_name.split('.')
-        return f'{custom_name or name}.{ext}'
+        name, ext = os.path.splitext(full_name)
+        return f'{custom_name or name}{ext}'
 
     def __enter__(self):
         """支持上下文管理器"""
