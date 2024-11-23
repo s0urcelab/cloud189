@@ -28,3 +28,6 @@ class PlayUrlError(Cloud189Error):
 
 class GetFilesError(Cloud189Error):
     pass
+
+class GetUserInfoError(Cloud189Error):
+    pass

@@ -322,3 +322,11 @@ class Cloud189Client:
             return response["normal"]["url"]
         
         raise PlayUrlError(f'getNewVlcVideoPlayUrl.action: {response}')
+    
+    def get_user_info(self):
+        response = self._advreq("https://cloud.189.cn/api/open/user/getUserInfoForPortal.action", "GET")
+
+        if response["res_code"] == 0:
+            return response
+        
+        raise GetUserInfoError(f'createBatchTask.action: {response}')
