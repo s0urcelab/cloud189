@@ -11,7 +11,8 @@ from cloud189.config import *
 from cloud189.exceptions import *
 
 class Cloud189Client:
-    def __init__(self, username=None, password=None, slice_size=DEFAULT_SLICE_SIZE):
+    def __init__(self, cookies=None, username=None, password=None, slice_size=DEFAULT_SLICE_SIZE):
+        self.cookies = cookies
         self.username = username
         self.password = password
         self.slice_size = slice_size
@@ -49,74 +50,85 @@ class Cloud189Client:
             raise AdvReqError(f'_advreq retry: {e}')
 
     def _login(self):
-        res = self.session.get("https://cloud.189.cn/api/portal/loginUrl.action?redirectURL=https%3A%2F%2Fcloud.189.cn%2Fmain.action")
+        # 将cookies添加到会话中
+        cookies = {
+            'COOKIE_LOGIN_USER': self.cookies
+        }
+        self.session.cookies.update(cookies)
+        res = self.session.get("https://cloud.189.cn/api/portal/listFiles.action")
+        res_json = res.json()
         
-        # 检查是否已登录
-        redirect_url = res.url
-        if redirect_url == "https://cloud.189.cn/web/main":
-            return None
+        # 未登录 & 登录失效
+        if res_json.get('res_code') != 0:
+            # self.session.get("https://wework.src.moe/simple?u=me&t=Roast Chicken Collection&c=189登录失效！")
+            raise LoginError(f'cloud189/client.py: COOKIE失效: {res_json}')
+        
+        # res = self.session.get("https://cloud.189.cn/api/portal/loginUrl.action?redirectURL=https%3A%2F%2Fcloud.189.cn%2Fmain.action")
+        
+        # # 检查是否已登录
+        # redirect_url = res.url
+        # if redirect_url == "https://cloud.189.cn/web/main":
+        #     return None
 
-        # 获取 lt, reqId, appId
-        lt = res.url.split("lt=")[1].split("&")[0]
-        req_id = res.url.split("reqId=")[1].split("&")[0]
-        app_id = res.url.split("appId=")[1].split("&")[0]
+        # # 获取 lt, reqId, appId
+        # lt = res.url.split("lt=")[1].split("&")[0]
+        # req_id = res.url.split("reqId=")[1].split("&")[0]
+        # app_id = res.url.split("appId=")[1].split("&")[0]
 
-        headers = {
-            "lt": lt,
-            "reqid": req_id,
-            "referer": redirect_url,
-            "origin": "https://open.e.189.cn",
-        }
+        # headers = {
+        #     "lt": lt,
+        #     "reqid": req_id,
+        #     "referer": redirect_url,
+        #     "origin": "https://open.e.189.cn",
+        # }
 
-        # 获取 app Conf
-        app_conf_data = {
-            "version": "2.0",
-            "appKey": app_id,
-        }
-        res = self.session.post("https://open.e.189.cn/api/logbox/oauth2/appConf.do", headers=headers, data=app_conf_data)
-        app_conf = res.json()
+        # # 获取 app Conf
+        # app_conf_data = {
+        #     "version": "2.0",
+        #     "appKey": app_id,
+        # }
+        # res = self.session.post("https://open.e.189.cn/api/logbox/oauth2/appConf.do", headers=headers, data=app_conf_data)
+        # app_conf = res.json()
 
-        if app_conf["result"] != "0":
-            raise LoginError(f'oauth2/appConf.do: {app_conf["msg"]}')
+        # if app_conf["result"] != "0":
+        #     raise LoginError(f'oauth2/appConf.do: {app_conf["msg"]}')
 
-        # 获取 encrypt conf
-        encrypt_conf_data = {
-            "appId": app_id,
-        }
-        res = self.session.post("https://open.e.189.cn/api/logbox/config/encryptConf.do", headers=headers, data=encrypt_conf_data)
-        encrypt_conf = res.json()
+        # # 获取 encrypt conf
+        # encrypt_conf_data = {
+        #     "appId": app_id,
+        # }
+        # res = self.session.post("https://open.e.189.cn/api/logbox/config/encryptConf.do", headers=headers, data=encrypt_conf_data)
+        # encrypt_conf = res.json()
 
-        if encrypt_conf["result"] != 0:
-            raise LoginError(f'config/encryptConf.do: {res.text}')
+        # if encrypt_conf["result"] != 0:
+        #     raise LoginError(f'config/encryptConf.do: {res.text}')
 
-        login_data = {
-            "version": "v2.0",
-            "apToken": "",
-            "appKey": app_id,
-            "accountType": app_conf["data"]["accountType"],
-            "userName": encrypt_conf["data"]["pre"] + rsa_encode(self.username, encrypt_conf["data"]["pubKey"]),
-            "epd": encrypt_conf["data"]["pre"] + rsa_encode(self.password, encrypt_conf["data"]["pubKey"]),
-            "captchaType": "",
-            "validateCode": "",
-            "smsValidateCode": "",
-            "captchaToken": "",
-            "returnUrl": app_conf["data"]["returnUrl"],
-            "mailSuffix": app_conf["data"]["mailSuffix"],
-            "dynamicCheck": "FALSE",
-            "clientType": str(app_conf["data"]["clientType"]),
-            "cb_SaveName": "3",
-            "isOauth2": str(app_conf["data"]["isOauth2"]).lower(),
-            "state": "",
-            "paramId": app_conf["data"]["paramId"],
-        }
+        # login_data = {
+        #     "version": "v2.0",
+        #     "apToken": "",
+        #     "appKey": app_id,
+        #     "accountType": app_conf["data"]["accountType"],
+        #     "userName": encrypt_conf["data"]["pre"] + rsa_encode(self.username, encrypt_conf["data"]["pubKey"]),
+        #     "epd": encrypt_conf["data"]["pre"] + rsa_encode(self.password, encrypt_conf["data"]["pubKey"]),
+        #     "captchaType": "",
+        #     "validateCode": "",
+        #     "smsValidateCode": "",
+        #     "captchaToken": "",
+        #     "returnUrl": app_conf["data"]["returnUrl"],
+        #     "mailSuffix": app_conf["data"]["mailSuffix"],
+        #     "dynamicCheck": "FALSE",
+        #     "clientType": str(app_conf["data"]["clientType"]),
+        #     "cb_SaveName": "3",
+        #     "isOauth2": str(app_conf["data"]["isOauth2"]).lower(),
+        #     "state": "",
+        #     "paramId": app_conf["data"]["paramId"],
+        # }
 
-        res = self.session.post("https://open.e.189.cn/api/logbox/oauth2/loginSubmit.do", headers=headers, data=login_data)
-        login_result = res.json()
+        # res = self.session.post("https://open.e.189.cn/api/logbox/oauth2/loginSubmit.do", headers=headers, data=login_data)
+        # login_result = res.json()
 
-        if login_result["result"] != 0:
-            raise LoginError(f'oauth2/loginSubmit.do: {login_result["msg"]}')
-
-        return None
+        # if login_result["result"] != 0:
+        #     raise LoginError(f'oauth2/loginSubmit.do: {login_result["msg"]}')
     
     def _get_rsa_key(self):
         now = int(time.time() * 1000)
