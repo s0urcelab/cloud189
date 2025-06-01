@@ -6,7 +6,8 @@ import math
 import hashlib
 import base64
 import json
-from cloud189.utils import rsa_encode, qs, aes_encrypt, hmac_sha1, random_string, FileStream, decodeURIComponent, encode, get_md5_encode_str, parse_cn_time
+from datetime import datetime
+from cloud189.utils import rsa_encode, qs, aes_encrypt, hmac_sha1, random_string, FileStream, decodeURIComponent, encode, get_md5_encode_str, parse_cn_time, calculate_md5_sign
 from cloud189.config import *
 from cloud189.exceptions import *
 
@@ -50,18 +51,41 @@ class Cloud189Client:
             raise AdvReqError(f'_advreq retry: {e}')
 
     def _login(self):
-        # 将cookies添加到会话中
-        cookies = {
-            'COOKIE_LOGIN_USER': self.cookies
-        }
-        self.session.cookies.update(cookies)
-        res = self.session.get("https://cloud.189.cn/api/portal/listFiles.action")
-        res_json = res.json()
+        session_key = self._get_session_key()
+        if session_key is None:
+            raise UploadError(f'failed to get session key')
+        self.session_key = session_key
         
-        # 未登录 & 登录失效
-        if res_json.get('res_code') != 0:
-            # self.session.get("https://wework.src.moe/simple?u=me&t=Roast Chicken Collection&c=189登录失效！")
-            raise LoginError(f'cloud189/client.py: COOKIE失效: {res_json}')
+        url = f"https://cloud.189.cn/api/open/oauth2/getAccessTokenBySsKey.action?sessionKey={self.sessionKey}&noCache={random_string()}"
+        timestamp = str(int(datetime.now(datetime.timezone.utc).timestamp() * 1000))
+        params = f'AppKey=600100422&Timestamp={timestamp}&sessionKey={self.sessionKey}'
+        headers = {
+            "AppKey": '600100422',
+            'Signature': calculate_md5_sign(params),
+            "Sign-Type": "1",
+            "Accept": "application/json;charset=UTF-8",
+            # "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:137.0) Gecko/20100101 Firefox/137.0",
+            'Timestamp': timestamp,
+        }
+        response = self.session.get(url, headers=headers, timeout=5)
+        acc_token = response.json()['accessToken']
+        exp = response.json()['expiresIn']
+        cookie_login_user = self.session.cookies.get('COOKIE_LOGIN_USER')
+        
+        print(acc_token)
+        print(exp)
+        print(cookie_login_user)
+        
+        if cookie_login_user is None:
+            raise LoginError(f'cloud189/client.py: 登录失败：未产生COOKIE！')
+        
+        
+        # res = self.session.get("https://cloud.189.cn/api/portal/listFiles.action")
+        # res_json = res.json()
+        # # 未登录 & 登录失效
+        # if res_json.get('res_code') != 0:
+        #     # self.session.get("https://wework.src.moe/simple?u=me&t=Roast Chicken Collection&c=189登录失效！")
+        #     raise LoginError(f'cloud189/client.py: COOKIE失效: {res_json}')
         
         # res = self.session.get("https://cloud.189.cn/api/portal/loginUrl.action?redirectURL=https%3A%2F%2Fcloud.189.cn%2Fmain.action")
         
@@ -187,11 +211,6 @@ class Cloud189Client:
         return response.json()
     
     def upload(self, file_path, folder_id, rename=None):
-        session_key = self._get_session_key()
-        if session_key is None:
-            raise UploadError(f'failed to get session key')
-        self.session_key = session_key
-        
         with FileStream(file_path) as file:
             file_size = file.get_size()
             count = math.ceil(file_size / self.slice_size)

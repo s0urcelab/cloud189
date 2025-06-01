@@ -131,3 +131,6 @@ def parse_cn_time(time_str):
     # 设置为 UTC+8 时区
     cn_timezone = timezone(timedelta(hours=8))
     return local_time.replace(tzinfo=cn_timezone)
+
+def calculate_md5_sign(params):
+    return hashlib.md5('&'.join(sorted(params.split('&'))).encode('utf-8')).hexdigest()
