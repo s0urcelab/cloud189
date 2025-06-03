@@ -10,11 +10,15 @@ import hashlib
 import base64
 import json
 import random
+import logging
 from urllib.parse import urlparse, parse_qs
 from .constants import *
 from .store import MemoryStore
 from .utils import get_signature, rsa_encode, aes_encrypt, hmac_sha1, FileStream, decodeURIComponent, encode, get_md5_encode_str, parse_cn_time
 from .auth import CloudAuthClient
+
+# 禁用 httpx 的日志输出
+logging.getLogger("httpx").setLevel(logging.WARNING)
 
 class CloudClient:
     """Main client for interacting with 189 Cloud"""
@@ -136,8 +140,6 @@ class CloudClient:
             original_params = dict(url_obj.params)
             original_params["sessionKey"] = session_key
             request.url = url_obj.copy_with(params=original_params)
-        
-        print(f"Request URL: {request.url}")
 
         return request
     

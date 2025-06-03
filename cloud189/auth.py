@@ -5,8 +5,12 @@ Authentication client for the Cloud189 SDK
 import re
 import time
 import httpx
+import logging
 from .constants import *
 from .utils import rsa_encrypt
+
+# 禁用 httpx 的日志输出
+logging.getLogger("httpx").setLevel(logging.WARNING)
 
 class CloudAuthClient:
     """Client for handling authentication with 189 Cloud"""
