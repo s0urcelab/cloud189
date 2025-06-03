@@ -20,19 +20,22 @@ client = Cloud189({
 })
 
 # List files
-client.get_all_files(folder_id)
+file_list = client.get_all_files(folder_id)
+
+# Download file
+download_url = client.download(file_id)
 
 # Upload file
-client.upload(file_path, folder_id, rename)
+file_id = client.upload(file_path, folder_id, rename)
 
 # Delete file
 client.delete(file_id, file_name, is_folder=False)
 
 # Get media play url
-client.get_play_url(file_id)
+media_url = client.get_play_url(file_id)
 
 # Get cloud disk space info 
-client.get_user_size_info()
+info = client.get_user_size_info()
 
 ```
 
@@ -40,6 +43,7 @@ client.get_user_size_info()
 
 - Login to Cloud189
 - List files and folders
+- Download files
 - Upload files
 - Delete files/folders
 

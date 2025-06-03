@@ -132,9 +132,13 @@ class CloudClient:
             session_key = self._get_session_key()
             
             url_obj = httpx.URL(url)
-            new_params = {"sessionKey": session_key}
-            request.url = url_obj.copy_with(params=new_params)
+            # Merge original params with sessionKey
+            original_params = dict(url_obj.params)
+            original_params["sessionKey"] = session_key
+            request.url = url_obj.copy_with(params=original_params)
         
+        print(f"Request URL: {request.url}")
+
         return request
     
     def _after_response(self, response, **kwargs):
@@ -420,6 +424,18 @@ class CloudClient:
         
         return res
     
+    def download(self, file_id):
+        """Download file"""
+        response = self.session.get(f"{WEB_URL}/api/open/file/getFileDownloadUrl.action", params={
+            "fileId": file_id,
+        })
+        resp_json = response.json()
+        
+        if resp_json.get("res_code") == 0:
+            return resp_json["fileDownloadUrl"]
+        
+        raise Exception(f'Failed to get download URL: {resp_json}')
+    
     def get_play_url(self, file_id):
         """Get video play URL"""
         response = self.session.get(f"{WEB_URL}/api/portal/getNewVlcVideoPlayUrl.action", params={
@@ -433,7 +449,7 @@ class CloudClient:
         
         raise Exception(f'Failed to get play URL: {resp_json}')
     
-    def get_user_size_info(self):
+    def get_disk_space_info(self):
         """Get user storage size information"""
         resp = self.session.get(f'{WEB_URL}/api/portal/getUserSizeInfo.action')
         return resp.json()
