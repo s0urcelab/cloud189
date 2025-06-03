@@ -16,6 +16,15 @@ jobs:
       with:
         python-version: '3.x'
         
+    - name: Update version numbers
+      run: |
+        # 从 tag 中提取版本号（去掉 v 前缀）
+        VERSION=${GITHUB_REF#refs/tags/v}
+        # 更新 setup.py 中的版本号
+        sed -i "s/<PYPI_VERSION>/$VERSION/" setup.py
+        # 更新 __init__.py 中的版本号
+        sed -i "s/<PYPI_VERSION>/$VERSION/" cloud189/__init__.py
+        
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip

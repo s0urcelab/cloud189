@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="cloud189",
-    version="0.1.4",
+    version="<PYPI_VERSION>",
     author="s0urce",
     author_email="me@src.moe",
     description="A Python SDK for interacting with Cloud189",
