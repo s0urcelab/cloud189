@@ -35,7 +35,7 @@ client.delete(file_id, file_name, is_folder=False)
 media_url = client.get_play_url(file_id)
 
 # Get cloud disk space info 
-info = client.get_user_size_info()
+info = client.get_disk_space_info()
 
 ```
 
