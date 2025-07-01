@@ -154,7 +154,7 @@ class CloudClient:
         while retry_count <= max_retries:
             response = self.session.request(method, url, **kwargs)
             
-            if response.status_code == 400:
+            if response.status_code >= 400:
                 try:
                     data = response.json()
                     error_code = data.get('errorCode')
