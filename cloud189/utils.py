@@ -94,7 +94,7 @@ def rsa_encode(data: str, pub_key: str, hex_output: bool = True) -> str:
         byte_str = data.encode('utf-8')
         encrypted_data = cipher.encrypt(byte_str)
     except Exception as e:
-        print(f"Error: {str(e)}")
+        # print(f"Error: {str(e)}")
         return ""
     
     # Encode to base64

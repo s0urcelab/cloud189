@@ -20,6 +20,9 @@ from .auth import CloudAuthClient
 # 禁用 httpx 的日志输出
 logging.getLogger("httpx").setLevel(logging.WARNING)
 
+# 配置 logger
+logger = logging.getLogger(__name__)
+
 class CloudClient:
     """Main client for interacting with 189 Cloud"""
     
@@ -157,22 +160,22 @@ class CloudClient:
                     error_code = data.get('errorCode')
                     
                     if error_code == 'InvalidAccessToken':
-                        print(f'InvalidAccessToken (第{retry_count + 1}次重试)')
+                        logger.warning(f'InvalidAccessToken (retry {retry_count + 1})')
                         self.token_session['accessToken'] = ''
                         retry_count += 1
                         if retry_count > max_retries:
-                            raise Exception(f'InvalidAccessToken 重试次数超过限制 ({max_retries}次)')
+                            raise Exception(f'InvalidAccessToken retry limit exceeded ({max_retries} times)')
                         continue
                         
                     elif error_code == 'InvalidSessionKey':
-                        print(f'InvalidSessionKey (第{retry_count + 1}次重试)')
+                        logger.warning(f'InvalidSessionKey (retry {retry_count + 1})')
                         self.token_session['sessionKey'] = ''
                         retry_count += 1
                         if retry_count > max_retries:
-                            raise Exception(f'InvalidSessionKey 重试次数超过限制 ({max_retries}次)')
+                            raise Exception(f'InvalidSessionKey retry limit exceeded ({max_retries} times)')
                         continue
                 except Exception as e:
-                    if '未知原因 重试次数超过限制' in str(e):
+                    if 'retry limit exceeded' in str(e):
                         raise e
                     pass
             
@@ -196,7 +199,7 @@ class CloudClient:
             try:
                 return self.auth_client.login_by_access_token(token_data['accessToken'])
             except Exception as e:
-                print(f"Error logging in with access token: {e}")
+                logger.error(f"Access token: {e}")
         
         if token_data and token_data.get('refreshToken'):
             try:
@@ -208,7 +211,7 @@ class CloudClient:
                 })
                 return self.auth_client.login_by_access_token(refresh_session['accessToken'])
             except Exception as e:
-                print(f"Error refreshing token: {e}")
+                logger.error(f"Refreshing token: {e}")
         
         if self.sson_cookie:
             try:
@@ -220,7 +223,7 @@ class CloudClient:
                 })
                 return login_token
             except Exception as e:
-                print(f"Error logging in with SSO cookie: {e}")
+                logger.error(f"SSO cookie: {e}")
         
         if self.username and self.password:
             try:
@@ -232,7 +235,7 @@ class CloudClient:
                 })
                 return login_token
             except Exception as e:
-                print(f"Error logging in with password: {e}")
+                logger.error(f"Password: {e}")
         
         raise Exception('Cannot get sessionKey by api')
     
