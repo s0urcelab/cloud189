@@ -46,6 +46,8 @@ info = client.get_disk_space_info()
 - Download files
 - Upload files
 - Delete files/folders
+- Automatic retry mechanism for token expiration
+- Configurable retry count
 
 ## License
 

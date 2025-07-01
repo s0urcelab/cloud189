@@ -31,6 +31,7 @@ class CloudClient:
         self.sson_cookie = options.get('ssonCookie')
         self.token_store = options.get('token', MemoryStore())
         self.slice_size = options.get('slice_size', 1024 * 1024 * 10)  # Default 10MB
+        self.max_retries = options.get('max_retries', 3)  # Default 3 retries
         self.rsa = {
             "Expire": 0,
             "PkId": "",
@@ -47,7 +48,7 @@ class CloudClient:
         })
         # Register hooks
         self.session.event_hooks['request'] = [self._before_request]
-        self.session.event_hooks['response'] = [self._after_response]
+        # self.session.event_hooks['response'] = [self._after_response]
 
     def _get_request_params(self, request):
         """Helper method to get request parameters from GET or POST request"""
@@ -87,7 +88,7 @@ class CloudClient:
         
         if API_URL in url:
             # Get accessToken from cache or fetch new one
-            access_token = self._get_session_key()
+            access_token = self._get_access_token()
             
             # Get request parameters
             params = self._get_request_params(request)
@@ -143,31 +144,39 @@ class CloudClient:
 
         return request
     
-    def _after_response(self, response, **kwargs):
-        """Handle response after receiving"""
-        if response.status_code == 400:
-            try:
-                data = response.json()
-                error_code = data.get('errorCode')
-                error_msg = data.get('errorMsg')
-                
-                if error_code == 'InvalidAccessToken':
-                    print('InvalidAccessToken retry...')
-                    print('Refresh AccessToken')
-                    self.token_session['accessToken'] = ''
-                    # Retry request
-                    return self.session.send(response.request)
-                    
-                elif error_code == 'InvalidSessionKey':
-                    print('InvalidSessionKey retry...')
-                    print('Refresh InvalidSessionKey')
-                    self.token_session['sessionKey'] = ''
-                    # Retry request
-                    return self.session.send(response.request)
-            except:
-                pass
+    def _request_with_retry(self, method, url, **kwargs):
+        max_retries = self.max_retries
+        retry_count = 0
         
-        return response
+        while retry_count <= max_retries:
+            response = self.session.request(method, url, **kwargs)
+            
+            if response.status_code == 400:
+                try:
+                    data = response.json()
+                    error_code = data.get('errorCode')
+                    
+                    if error_code == 'InvalidAccessToken':
+                        print(f'InvalidAccessToken (第{retry_count + 1}次重试)')
+                        self.token_session['accessToken'] = ''
+                        retry_count += 1
+                        if retry_count > max_retries:
+                            raise Exception(f'InvalidAccessToken 重试次数超过限制 ({max_retries}次)')
+                        continue
+                        
+                    elif error_code == 'InvalidSessionKey':
+                        print(f'InvalidSessionKey (第{retry_count + 1}次重试)')
+                        self.token_session['sessionKey'] = ''
+                        retry_count += 1
+                        if retry_count > max_retries:
+                            raise Exception(f'InvalidSessionKey 重试次数超过限制 ({max_retries}次)')
+                        continue
+                except Exception as e:
+                    if '未知原因 重试次数超过限制' in str(e):
+                        raise e
+                    pass
+            
+            return response
     
     def _validate_options(self, options):
         """Validate client configuration options"""
@@ -225,7 +234,7 @@ class CloudClient:
             except Exception as e:
                 print(f"Error logging in with password: {e}")
         
-        raise Exception('Cannot get session')
+        raise Exception('Cannot get sessionKey by api')
     
     def _get_rsa_key(self):
         """Get RSA key for encryption"""
@@ -353,7 +362,7 @@ class CloudClient:
             if result['code'] == 'SUCCESS':
                 return result['file']['userFileId']
             
-            raise Exception(f'Upload failed: {result}')
+            raise Exception(f'Failed to upload: {result}')
     
     def delete(self, file_id, file_name, is_folder=False):
         """Delete file or folder"""
@@ -371,11 +380,11 @@ class CloudClient:
             "taskInfos": task_infos_bytes,
         }
         
-        response = self.session.post(f"{WEB_URL}/api/open/batch/createBatchTask.action", data=form)
+        response = self._request_with_retry('POST', f"{WEB_URL}/api/open/batch/createBatchTask.action", data=form)
         resp_json = response.json()
         
         if resp_json.get("res_code") != 0:
-            raise Exception(f'Delete failed: {resp_json}')
+            raise Exception(f'Failed to delete: {resp_json}')
     
     def get_all_files(self, folder_id):
         """Get all files and folders in a directory"""
@@ -383,7 +392,7 @@ class CloudClient:
         page_num = 1
         
         while True:
-            response = self.session.get(f"{WEB_URL}/api/open/file/listFiles.action", params={
+            response = self._request_with_retry('GET', f"{WEB_URL}/api/open/file/listFiles.action", params={
                 "pageSize": "60",
                 "pageNum": str(page_num),
                 "mediaType": "0",
@@ -428,7 +437,7 @@ class CloudClient:
     
     def download(self, file_id):
         """Download file"""
-        response = self.session.get(f"{WEB_URL}/api/open/file/getFileDownloadUrl.action", params={
+        response = self._request_with_retry('GET', f"{WEB_URL}/api/open/file/getFileDownloadUrl.action", params={
             "fileId": file_id,
         })
         resp_json = response.json()
@@ -440,7 +449,7 @@ class CloudClient:
     
     def get_play_url(self, file_id):
         """Get video play URL"""
-        response = self.session.get(f"{WEB_URL}/api/portal/getNewVlcVideoPlayUrl.action", params={
+        response = self._request_with_retry('GET', f"{WEB_URL}/api/portal/getNewVlcVideoPlayUrl.action", params={
             "fileId": file_id,
             "type": "2",
         })
@@ -453,5 +462,10 @@ class CloudClient:
     
     def get_disk_space_info(self):
         """Get user storage size information"""
-        resp = self.session.get(f'{WEB_URL}/api/portal/getUserSizeInfo.action')
-        return resp.json()
+        response = self._request_with_retry('GET', f'{WEB_URL}/api/portal/getUserSizeInfo.action')
+        resp_json = response.json()
+            
+        if resp_json.get("res_code") == 0:
+            return resp_json
+        
+        raise Exception(f'Failed to get disk space info: {resp_json}')
